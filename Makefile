@@ -11,5 +11,3 @@ all: $(OBJECTS)
 ipe32.obj.o: NASMFLAGS += -DNO_SHORT_JMP=1
 ipe32.%.o: ipe32-nasm.asm
 	$(NASM) $(NASMFLAGS) -f $(@:ipe32.%.o=%) -o $@ $<
-
-
