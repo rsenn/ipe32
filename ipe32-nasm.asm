@@ -388,7 +388,14 @@
 ; loop calling the procedures and finally jump to the start address to the
 ; decrypted code.
 ind00r:
-                pushad                           ; preserve all registers
+                push  eax                        ; preserve all registers
+                push  ecx
+                push  edx
+                push  ebx
+                push  ebp
+                push  esi
+                push  edi
+ 
                 call  iInit                      ; initialize poly engine
 ind00r_delta:   mov   al, JMP_LONG               ; write jump to main loop
                 stosb                            ; store opcode
@@ -404,7 +411,13 @@ ind00r_delta:   mov   al, JMP_LONG               ; write jump to main loop
                 sub   edi, [esp+PUSHAD_EDI]      ; calculate decryptor size
                 mov   [esp+PUSHAD_ECX], edi      ; ECX = size
                 call  iEncrypt                   ; encrypt code!
-                popad                            ; restore all registers
+                pop  edi                         ; restore all registers
+                pop  esi
+                pop  ebp
+                pop  ebx
+                pop  edx
+                pop  ecx
+                pop  eax
                 ret                              ; return
 ;ind00r          endp
 ; main procedure: init
@@ -613,7 +626,14 @@ gp_par:         call  WriteJunk
                 pop   ebx
                 inc   ebx                       ; increment count
                 pop   ecx
+%ifdef NO_SHORT_JMP
+                dec   ecx
+                jz    gp_loop_short
+                jmp   gp_loop
+gp_loop_short:  
+%else              
                 loop  gp_loop
+%endif
                 ret
 ;iGenProcs       endp
 ; generates main loop with some junk between callz.
