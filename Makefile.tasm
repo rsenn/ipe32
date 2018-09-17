@@ -1,0 +1,9 @@
+TASM = tasm32
+TASMFLAGS = /m3 /z /c /la
+
+OBJECTS = ipe32.tasm.o
+
+all: $(OBJECTS)
+
+ipe32.%.o: ipe32-tasm.asm
+	$(TASM) $(TASMFLAGS) $< $@
