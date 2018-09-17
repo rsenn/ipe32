@@ -1,0 +1,17 @@
+YASM = yasm
+
+#PARSER = nasm
+PARSER = tasm
+YASMFLAGS = -p $(PARSER)
+
+#OBJ_FORMATS = coff elf elf32 obj win win32 macho macho32
+OBJ_FORMATS = bin dosexe elf elf32 elfx32 coff macho macho32 rdf win32 xdf
+
+
+OBJECTS = $(patsubst %,ipe32.yasm.%.o,$(OBJ_FORMATS))
+
+all: $(OBJECTS)
+
+ipe32.yasm.obj.o: YASMFLAGS += -DNO_SHORT_JMP=1
+ipe32.yasm.%.o: ipe32-yasm.asm
+	$(YASM) $(YASMFLAGS) -f $(@:ipe32.yasm.%.o=%) -o $@ $<
